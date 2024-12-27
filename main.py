@@ -26,7 +26,7 @@ def get_glyph_info(character):
 def create_plotter_svg(text, font_size):
     paths = []
     current_x = 0
-    scale = font_size / 1000
+    scale = (font_size / 1000) * 0.4  # Reduce overall size
     margin = 10 * MM_TO_PT
 
     for char in text:
@@ -46,7 +46,8 @@ def create_plotter_svg(text, font_size):
              viewBox="0 0 {AXIDRAW_WIDTH_MM} {AXIDRAW_HEIGHT_MM}"
              height="{AXIDRAW_HEIGHT_MM}mm"
              width="{AXIDRAW_WIDTH_MM}mm">
-            <g stroke="black" fill="none" transform="scale({scale})">
+            <g stroke="black" fill="none" 
+               transform="scale({scale}) rotate(180) translate(-{AXIDRAW_WIDTH_MM}, -{AXIDRAW_HEIGHT_MM})">
                 {"".join(paths)}
             </g>
         </svg>'''
