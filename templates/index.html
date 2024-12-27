@@ -49,7 +49,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="fontSize" class="form-label">Font Size</label>
+                            <label for="fontSize" class="form-label">Preview Size</label>
                             <input type="range" class="form-range" id="fontSize" min="8" max="36" value="12">
                             <span id="fontSizeValue">12pt</span>
                         </div>
@@ -78,15 +78,9 @@
             const AXIDRAW_HEIGHT_MM = 101.6;
             const MM_TO_PT = 2.83465;
 
-            const CANVAS_WIDTH = AXIDRAW_WIDTH_MM * MM_TO_PT;
-            const CANVAS_HEIGHT = AXIDRAW_HEIGHT_MM * MM_TO_PT;
-
-            const MARGIN_MM = 10;
-            const MARGIN_PT = MARGIN_MM * MM_TO_PT;
-
             const canvas = document.getElementById('previewCanvas');
-            canvas.width = CANVAS_WIDTH;
-            canvas.height = CANVAS_HEIGHT;
+            canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PT;
+            canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PT;
 
             const ctx = canvas.getContext('2d');
             const messageText = document.getElementById('messageText');
@@ -102,48 +96,20 @@
 
             messageText.addEventListener('input', updatePreview);
 
-            function wrapText(text, maxWidth) {
-                const words = text.split(' ');
-                const lines = [];
-                let currentLine = words[0] || '';
-
-                for (let i = 1; i < words.length; i++) {
-                    const testLine = currentLine + ' ' + words[i];
-                    const metrics = ctx.measureText(testLine);
-
-                    if (metrics.width < maxWidth - (MARGIN_PT * 2)) {
-                        currentLine = testLine;
-                    } else {
-                        lines.push(currentLine);
-                        currentLine = words[i];
-                    }
-                }
-                if (currentLine) lines.push(currentLine);
-                return lines;
-            }
-
             function updatePreview() {
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 ctx.strokeStyle = '#ddd';
-                ctx.strokeRect(MARGIN_PT, MARGIN_PT, 
-                             canvas.width - (MARGIN_PT * 2), 
-                             canvas.height - (MARGIN_PT * 2));
+                ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
                 ctx.fillStyle = 'black';
                 const fontSizeVal = parseInt(fontSize.value);
                 ctx.font = `${fontSizeVal}pt PremiumUltra`;
 
                 document.fonts.ready.then(() => {
-                    const lineHeight = fontSizeVal * 1.2;
-                    const lines = wrapText(messageText.value, canvas.width);
-                    let y = MARGIN_PT + fontSizeVal;
-
-                    lines.forEach(line => {
-                        ctx.fillText(line, MARGIN_PT, y);
-                        y += lineHeight;
-                    });
+                    const text = messageText.value;
+                    ctx.fillText(text, 40, 60 + fontSizeVal);
                 });
             }
 
@@ -160,7 +126,6 @@
                         },
                         body: JSON.stringify({
                             text: messageText.value,
-                            fontSize: parseInt(fontSize.value)
                         })
                     });
 
