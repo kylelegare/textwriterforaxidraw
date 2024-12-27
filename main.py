@@ -6,12 +6,12 @@ import xml.etree.ElementTree as ET
 app = Flask(__name__)
 CORS(app)
 
-FIXED_SCALE = 0.02
+FIXED_SCALE = 0.002
 AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
 
 def get_glyph_info(character):
-    tree = ET.parse("static/fonts/PremiumUltra54.svg")
+    tree = ET.parse("static/fonts/PremiumUltra5git ad4.svg")
     root = tree.getroot()
     for glyph in root.findall(".//*[@unicode]"):
         if glyph.get('unicode') == character:
