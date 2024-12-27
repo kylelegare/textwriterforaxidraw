@@ -83,13 +83,10 @@
     <!-- Scripts -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Constants
-            const PT_TO_MM = 0.352778;  // 1 point = 0.352778 mm
-            const MM_TO_PT = 2.83465;   // 1mm = 2.83465pt
-
-            // AxiDraw Mini dimensions (in points)
+            // AxiDraw Mini dimensions (in points, 1pt = 0.35mm)
             const AXIDRAW_WIDTH_MM = 152.4;
             const AXIDRAW_HEIGHT_MM = 101.6;
+            const MM_TO_PT = 2.83465;  // 1mm = 2.83465pt
 
             // Convert mm to points for canvas
             const CANVAS_WIDTH = AXIDRAW_WIDTH_MM * MM_TO_PT;
@@ -150,9 +147,9 @@
                              canvas.width - (MARGIN_PT * 2), 
                              canvas.height - (MARGIN_PT * 2));
 
-                // Convert font size from points to mm for preview
+                // Set up text drawing
+                ctx.fillStyle = 'black';
                 const fontSizeVal = parseInt(fontSize.value);
-                const fontSizeMM = fontSizeVal * PT_TO_MM;
                 ctx.font = `${fontSizeVal}pt PremiumUltra`;
 
                 document.fonts.ready.then(() => {
