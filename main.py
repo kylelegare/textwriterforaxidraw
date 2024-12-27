@@ -11,7 +11,7 @@ AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
 
 def get_glyph_info(character):
-    tree = ET.parse("static/fonts/PremiumUltra5git ad4.svg")
+    tree = ET.parse("static/fonts/PremiumUltra54.svg")
     root = tree.getroot()
     for glyph in root.findall(".//*[@unicode]"):
         if glyph.get('unicode') == character:
