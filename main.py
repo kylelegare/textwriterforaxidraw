@@ -6,11 +6,14 @@ import xml.etree.ElementTree as ET
 app = Flask(__name__)
 CORS(app)
 
+# Constants
+PT_TO_MM = 0.352778  # 1 point = 0.352778 mm
+MM_TO_PT = 2.83465   # 1mm = 2.83465pt
+
 def get_glyph_info(character):
     """Get path data and metrics for a character from SVG font"""
     tree = ET.parse("static/fonts/PremiumUltra54.svg")
     root = tree.getroot()
-
     for glyph in root.findall(".//*[@unicode]"):
         if glyph.get('unicode') == character:
             return {
@@ -20,38 +23,41 @@ def get_glyph_info(character):
     return None
 
 def create_plotter_svg(text, font_size):
-    """Create SVG for plotting with proper scaling and positioning"""
+    # Convert font size from points to mm
+    font_size_mm = font_size * PT_TO_MM
+
     paths = []
-    x_offset = 0
-    units_per_em = 1000  # Typical for many fonts, adjust if different
-    scale = font_size / units_per_em  # Scale to match font size in mm
+    current_x = 0
+    units_per_em = 1000
+    scale = font_size_mm / units_per_em  # Now using mm-based scale
+
+    base_y = 90
 
     for char in text:
         if char == ' ':
-            x_offset += 500 * scale  # Adjust space width
+            current_x += 500 * scale
             continue
 
         glyph_info = get_glyph_info(char)
         if glyph_info:
-            path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},0)" />'
+            transform = f'translate({current_x * units_per_em},{0})'
+            path = f'<path d="{glyph_info["path"]}" transform="{transform}" />'
             paths.append(path)
-            x_offset += glyph_info['advance'] * scale
+            current_x += glyph_info['advance'] * scale
 
-    svg = f"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            version="1.1"
-            viewBox="0 0 152.4 101.6"
-            height="101.6mm"
-            width="152.4mm">
-            <g 
-                stroke="black"
-                stroke-width="0.3"
-                fill="none"
-                transform="translate(10,90) scale({scale},-{scale})">
+    svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+        <svg xmlns="http://www.w3.org/2000/svg"
+             version="1.1"
+             viewBox="0 0 152.4 101.6"
+             height="101.6mm"
+             width="152.4mm">
+            <g stroke="black"
+               stroke-width="0.3"
+               fill="none"
+               transform="translate(10,{base_y}) scale({scale},-{scale})">
                 {"".join(paths)}
             </g>
-        </svg>"""
+        </svg>'''
     return svg
 
 @app.route('/')
@@ -84,11 +90,11 @@ def test_plot():
             'status': 'success',
             'message': 'Plot completed successfully'
         })
-
     except Exception as e:
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
 
-app.run(host='0.0.0.0', port=8080)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
