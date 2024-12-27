@@ -23,21 +23,20 @@ def create_plotter_svg(text, font_size):
     """Create SVG for plotting with proper scaling and positioning"""
     paths = []
     x_offset = 0
-    scale = 0.02 * (font_size / 12)  # Scale based on font size
+    units_per_em = 1000  # Typical for many fonts, adjust if different
+    scale = font_size / units_per_em  # Scale to match font size in mm
 
-    # Collect path data for each character
     for char in text:
         if char == ' ':
-            x_offset += 500  # Space width
+            x_offset += 500 * scale  # Adjust space width
             continue
 
         glyph_info = get_glyph_info(char)
         if glyph_info:
             path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},0)" />'
             paths.append(path)
-            x_offset += glyph_info['advance']
+            x_offset += glyph_info['advance'] * scale
 
-    # Create complete SVG document
     svg = f"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -49,11 +48,10 @@ def create_plotter_svg(text, font_size):
                 stroke="black"
                 stroke-width="0.3"
                 fill="none"
-                transform="translate(40,60) scale({scale},-{scale})">
+                transform="translate(10,90) scale({scale},-{scale})">
                 {"".join(paths)}
             </g>
         </svg>"""
-
     return svg
 
 @app.route('/')
