@@ -7,13 +7,12 @@ app = Flask(__name__)
 CORS(app)
 
 # Constants
-PT_TO_MM = 0.352778  # 1 point = 0.352778 mm
-MM_TO_PT = 2.83465   # 1mm = 2.83465pt
+PT_TO_MM = 0.352778
+MM_TO_PT = 2.83465
 AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
 
 def get_glyph_info(character):
-    """Get path data and metrics for a character from SVG font"""
     tree = ET.parse("static/fonts/PremiumUltra54.svg")
     root = tree.getroot()
     for glyph in root.findall(".//*[@unicode]"):
@@ -25,48 +24,33 @@ def get_glyph_info(character):
     return None
 
 def create_plotter_svg(text, font_size):
-    # Convert font size from points to mm
-    font_size_mm = font_size * PT_TO_MM
-
     paths = []
     current_x = 0
-    units_per_em = 1000
-    scale = font_size / units_per_em  # Use points for consistent scaling
-
-    base_y = font_size  # Adjust baseline to font size
-    margin = 10 * MM_TO_PT  # 10mm margin in points
+    scale = font_size / 1000
+    margin = 10 * MM_TO_PT
 
     for char in text:
         if char == ' ':
-            current_x += 250 * scale  # Reduced space width
+            current_x += 250
             continue
 
         glyph_info = get_glyph_info(char)
         if glyph_info:
-            x_pos = margin + (current_x * scale)
-            transform = f'translate({x_pos},{base_y + margin})'
-            path = f'<path d="{glyph_info["path"]}" transform="{transform}" />'
+            x_pos = margin + current_x
+            path = f'<path d="{glyph_info["path"]}" transform="translate({x_pos},50)" />'
             paths.append(path)
             current_x += glyph_info['advance']
 
-    # Convert dimensions to points for consistent scaling
-    width_pt = AXIDRAW_WIDTH_MM * MM_TO_PT
-    height_pt = AXIDRAW_HEIGHT_MM * MM_TO_PT
-
     svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg xmlns="http://www.w3.org/2000/svg"
-             version="1.1"
-             viewBox="0 0 {width_pt} {height_pt}"
-             height="{height_pt}pt"
-             width="{width_pt}pt">
-            <g stroke="black"
-               stroke-width="0.3"
-               fill="none"
-               transform="scale({scale},-{scale})">
+             viewBox="0 0 {AXIDRAW_WIDTH_MM} {AXIDRAW_HEIGHT_MM}"
+             height="{AXIDRAW_HEIGHT_MM}mm"
+             width="{AXIDRAW_WIDTH_MM}mm">
+            <g stroke="black" fill="none" transform="scale({scale})">
                 {"".join(paths)}
             </g>
         </svg>'''
-    print("Generated SVG:", svg)  # Debug print
+    print("Generated SVG:", svg)
     return svg
 
 @app.route('/')
@@ -90,18 +74,23 @@ def test_plot():
         print("SVG generated")
 
         ad = axidraw.AxiDraw()
-        print("Created AxiDraw instance")
+        ad.interactive()
+        ad.connect()
+
+        if not ad.connected:
+            raise Exception("Failed to connect to AxiDraw")
+
+        ad.options.mode = "align"
+        ad.update()
+
+        ad.options.mode = "plot"
+        ad.options.speed_pendown = 25
+        ad.options.pen_pos_down = 80
+        ad.options.pen_pos_up = 40
 
         ad.plot_setup(svg_content)
-        print("Plot setup complete")
-
-        ad.options.speed_pendown = 25
-        ad.options.pen_pos_down = 60
-        ad.options.pen_pos_up = 40
-        print("Options set")
-
         ad.plot_run()
-        print("Plot run complete")
+        ad.disconnect()
 
         return jsonify({
             'status': 'success',
