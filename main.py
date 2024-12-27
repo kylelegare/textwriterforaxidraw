@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 app = Flask(__name__)
 CORS(app)
 
-FIXED_SCALE = 0.002
+FIXED_SCALE = 0.004
 AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
 
@@ -27,7 +27,7 @@ def create_plotter_svg(text):
 
     for char in text:
         if char == ' ':
-            x_offset += 500
+            x_offset += 250
             continue
 
         glyph_info = get_glyph_info(char)
