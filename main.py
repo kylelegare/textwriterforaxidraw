@@ -66,6 +66,7 @@ def create_plotter_svg(text, font_size):
                 {"".join(paths)}
             </g>
         </svg>'''
+    print("Generated SVG:", svg)  # Debug print
     return svg
 
 @app.route('/')
@@ -83,44 +84,31 @@ def test_plot():
         text = data.get('text', '')
         font_size = data.get('fontSize', 12)
 
-        # Create SVG for plotting
+        print(f"Starting plot with text: {text}, size: {font_size}")
+
         svg_content = create_plotter_svg(text, font_size)
+        print("SVG generated")
 
-        # Setup AxiDraw
         ad = axidraw.AxiDraw()
+        print("Created AxiDraw instance")
 
-        # Initialize to optimal configuration
-        ad.interactive()
-        ad.connect()
-
-        if not ad.connected:
-            return jsonify({
-                'status': 'error',
-                'message': 'Could not connect to AxiDraw'
-            }), 500
-
-        # Home the plotter
-        ad.options.mode = "align"
-        ad.update()
-
-        # Configure plotting options
-        ad.options.speed_pendown = 25  # Reduced speed for better quality
-        ad.options.pen_pos_down = 60  # Adjusted pen pressure
-        ad.options.pen_pos_up = 40
-        ad.options.mode = "plot"  # Set back to plot mode
-
-        # Plot the SVG
         ad.plot_setup(svg_content)
-        ad.plot_run()
+        print("Plot setup complete")
 
-        # Disconnect when done
-        ad.disconnect()
+        ad.options.speed_pendown = 25
+        ad.options.pen_pos_down = 60
+        ad.options.pen_pos_up = 40
+        print("Options set")
+
+        ad.plot_run()
+        print("Plot run complete")
 
         return jsonify({
             'status': 'success',
             'message': 'Plot completed successfully'
         })
     except Exception as e:
+        print(f"Error during plotting: {str(e)}")
         return jsonify({
             'status': 'error',
             'message': str(e)
