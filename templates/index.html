@@ -1,342 +1,183 @@
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AxiDraw Postcard Writer - Single-Source SVG Font</title>
-
-  <!-- Bootstrap (optional) -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
-
-  <style>
-    /* The canvas for preview */
-    #previewCanvas {
-      width: 100%;
-      height: auto;
-      border: 1px solid var(--bs-border-color);
-      background-color: white;
-    }
-
-    #fontSizeValue {
-      display: inline-block;
-      min-width: 40px;
-      text-align: right;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AxiDraw Postcard Writer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'PremiumUltra';
+            src: url('/static/fonts/PremiumUltra54.ttf') format('truetype');
+        }
+        #previewCanvas {
+            width: 100%;
+            height: auto;
+            border: 1px solid var(--bs-border-color);
+            background-color: white;
+        }
+        #fontSizeValue {
+            display: inline-block;
+            min-width: 40px;
+            text-align: right;
+        }
+    </style>
 </head>
-
 <body>
-<div class="container py-4">
-  <div class="row">
-    <!-- Left side: Preview -->
-    <div class="col-md-8">
-      <div class="card mb-4">
-        <div class="card-header">
-          <h5 class="card-title mb-0">Postcard Preview (Using SVG Font Paths)</h5>
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Postcard Preview</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="previewCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Controls</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="messageText" class="form-label">Message</label>
+                            <textarea class="form-control" id="messageText" rows="4" maxlength="100" placeholder="Enter your message..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fontSize" class="form-label">Preview Size</label>
+                            <input type="range" class="form-range" id="fontSize" min="8" max="36" value="12">
+                            <span id="fontSizeValue">12pt</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <button id="plotBtn" class="btn btn-primary w-100">Plot Message</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="statusMessage" class="alert alert-info">Ready</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-          <canvas id="previewCanvas"></canvas>
-        </div>
-      </div>
     </div>
 
-    <!-- Right side: Controls -->
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">
-          <h5 class="card-title mb-0">Controls</h5>
-        </div>
-        <div class="card-body">
-          <!-- Input text -->
-          <div class="mb-3">
-            <label for="messageText" class="form-label">Message</label>
-            <textarea
-              class="form-control"
-              id="messageText"
-              rows="4"
-              placeholder="Enter your message..."
-            ></textarea>
-          </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const FIXED_SCALE = 0.004;  // Same as backend
+            const AXIDRAW_WIDTH_MM = 152.4;
+            const AXIDRAW_HEIGHT_MM = 101.6;
+            const MM_TO_PX = 3.7795275591;  // 96 DPI / 25.4 mm per inch
 
-          <!-- Font size slider -->
-          <div class="mb-3">
-            <label for="fontSize" class="form-label">Font Scale</label>
-            <input
-              type="range"
-              class="form-range"
-              id="fontSize"
-              min="0.01"
-              max="0.05"
-              step="0.005"
-              value="0.02"
-            />
-            <span id="fontSizeValue">0.02</span> (relative scale)
-          </div>
+            const canvas = document.getElementById('previewCanvas');
+            canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PX;
+            canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PX;
 
-          <!-- Plot button -->
-          <div class="mb-3">
-            <button id="plotBtn" class="btn btn-primary w-100">
-              Plot Message
-            </button>
-          </div>
-        </div>
-      </div>
+            const ctx = canvas.getContext('2d');
+            const messageText = document.getElementById('messageText');
+            const fontSize = document.getElementById('fontSize');
+            const fontSizeValue = document.getElementById('fontSizeValue');
+            const plotBtn = document.getElementById('plotBtn');
+            const statusMessage = document.getElementById('statusMessage');
 
-      <div class="card mt-4">
-        <div class="card-header">
-          <h5 class="card-title mb-0">Status</h5>
-        </div>
-        <div class="card-body">
-          <div id="statusMessage" class="alert alert-info">Ready</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+            fontSize.addEventListener('input', (e) => {
+                fontSizeValue.textContent = ${e.target.value}pt;
+                updatePreview();
+            });
 
-<!-- JavaScript -->
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  // Approx size of AxiDraw Mini in mm
-  const AXIDRAW_WIDTH_MM = 152.4;
-  const AXIDRAW_HEIGHT_MM = 101.6;
-  // Convert mm -> px at ~96 dpi
-  const MM_TO_PX = 3.7795275591;
+            messageText.addEventListener('input', updatePreview);
 
-  // Canvas
-  const canvas = document.getElementById('previewCanvas');
-  canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PX;  // ~577 px
-  canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PX; // ~384 px
-  const ctx = canvas.getContext('2d');
+            function updatePreview() {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // UI elements
-  const messageText = document.getElementById('messageText');
-  const fontSizeRange = document.getElementById('fontSize');
-  const fontSizeValue = document.getElementById('fontSizeValue');
-  const plotBtn = document.getElementById('plotBtn');
-  const statusMessage = document.getElementById('statusMessage');
+                // Draw border to show plotting area
+                ctx.strokeStyle = '#ddd';
+                ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
-  // We'll store glyph data from the SVG font here: { "A": { path: "...", advance: 600 }, ... }
-  let glyphMap = {};
-  // We'll store the final list of "shapes" (each shape = { path, x, y }) to render + send
-  let shapeData = [];
+                ctx.fillStyle = 'black';
+                const fontSizeVal = parseInt(fontSize.value);
+                ctx.font = ${fontSizeVal}pt PremiumUltra;
 
-  // 1) Fetch and parse the single-stroke SVG font on page load
-  fetch('/static/fonts/PremiumUltra54.svg')
-    .then(resp => resp.text())
-    .then(svgText => {
-      // Parse XML
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(svgText, 'image/svg+xml');
+                // Calculate max width based on physical plotter dimensions
+                const maxWidth = (canvas.width - 80) / (FIXED_SCALE * MM_TO_PX);
+                const lineHeight = 1000;  // Same as SVG font units
+                const startX = 40;
+                let startY = 60 + (1000 * FIXED_SCALE * MM_TO_PX);  // Match SVG y-offset
 
-      // Build glyphMap => char => { path, advance }
-      // The glyphs typically have <glyph unicode="A" horiz-adv-x="600" d="M...z" />
-      const glyphs = doc.querySelectorAll('glyph[unicode]');
-      glyphs.forEach(g => {
-        const uni = g.getAttribute('unicode');     // the character
-        const d = g.getAttribute('d');             // path data
-        let adv = g.getAttribute('horiz-adv-x');   // advance
-        if (!adv) adv = "1000"; // default
-        if (uni && d) {
-          glyphMap[uni] = { path: d, advance: parseFloat(adv) };
-        }
-      });
+                document.fonts.ready.then(() => {
+                    const text = messageText.value;
+                    const words = text.split(' ');
+                    let line = '';
 
-      console.log("Loaded glyphMap:", glyphMap);
-      // Now we can respond to user inputs
-      setupEventListeners();
-      updatePreview();
-    })
-    .catch(err => {
-      console.error("Error loading SVG font", err);
-      statusMessage.className = 'alert alert-danger';
-      statusMessage.textContent = 'Error loading font file. Check console.';
-    });
+                    for (let word of words) {
+                        const testLine = line + (line ? ' ' : '') + word;
+                        const metrics = ctx.measureText(testLine);
+                        const scaledWidth = metrics.width / (FIXED_SCALE * MM_TO_PX);
 
-  // Hook up UI events AFTER font is loaded
-  function setupEventListeners() {
-    fontSizeRange.addEventListener('input', () => {
-      fontSizeValue.textContent = fontSizeRange.value;
-      updatePreview();
-    });
-    messageText.addEventListener('input', updatePreview);
-    plotBtn.addEventListener('click', onPlotClick);
-  }
+                        if (scaledWidth > maxWidth && line !== '') {
+                            ctx.fillText(line, startX, startY);
+                            line = word;
+                            startY += lineHeight * FIXED_SCALE * MM_TO_PX;
 
-  // 2) The main preview update
-  function updatePreview() {
-    // Clear canvas
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            if (startY > canvas.height - 40) {
+                                break;
+                            }
+                        } else {
+                            line = testLine;
+                        }
+                    }
 
-    // Draw bounding box (margin = 10 mm)
-    const marginPx = 10 * MM_TO_PX;
-    ctx.strokeStyle = '#aaa';
-    ctx.strokeRect(
-      marginPx,
-      marginPx,
-      canvas.width - 2 * marginPx,
-      canvas.height - 2 * marginPx
-    );
+                    if (line !== '' && startY <= canvas.height - 40) {
+                        ctx.fillText(line, startX, startY);
+                    }
+                });
+            }
 
-    // Layout text as shapes
-    shapeData = layoutText(
-      messageText.value || "",
-      parseFloat(fontSizeRange.value),
-      marginPx,
-      marginPx,
-      canvas.width - 2 * marginPx
-    );
+            plotBtn.addEventListener('click', async () => {
+                try {
+                    plotBtn.disabled = true;
+                    statusMessage.className = 'alert alert-info';
+                    statusMessage.textContent = 'Plotting...';
 
-    // Render shapes
-    renderShapes(shapeData);
-  }
+                    const response = await fetch('/api/test_plot', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: messageText.value,
+                        })
+                    });
 
-  /**
-   * 3) Convert typed text into an array of { path, x, y } using glyphMap
-   *    - We'll do simple word-wrapping at maxWidthPx.
-   *    - Each glyph's "advance" is in font units. We'll scale them by `fontScale`.
-   */
-  function layoutText(text, fontScale, startX, startY, maxWidthPx) {
-    // We'll treat each glyph's "advance" as "font units"
-    // Suppose we treat 1000 font units = 1 "base" unit. We'll scale by `fontScale`.
-    // For single-line spacing, let's do lineHeight in "font units"
-    const lineHeightUnits = 1200; // somewhat bigger than 1000 so lines don't overlap
+                    const data = await response.json();
 
-    let shapes = [];
-    let xUnits = 0;
-    let yUnits = 0;
-    // We'll define a ratio so that 1 font unit -> (fontScale * 1 px)
-    // You can tune the base to something else if desired
-    const pxPerUnit = fontScale; // e.g. if fontScale=0.02, then 1000 units => 20 px
+                    if (data.status === 'success') {
+                        statusMessage.className = 'alert alert-success';
+                        statusMessage.textContent = 'Plot completed!';
+                    } else {
+                        throw new Error(data.message);
+                    }
+                } catch (error) {
+                    statusMessage.className = 'alert alert-danger';
+                    statusMessage.textContent = 'Error: ' + error.message;
+                } finally {
+                    plotBtn.disabled = false;
+                }
+            });
 
-    // We'll do a naive word split
-    const words = text.split(/\s+/);
-
-    let currentLineWidthUnits = 0;
-    const maxWidthUnits = maxWidthPx / pxPerUnit;
-
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i];
-      let wordWidthUnits = 0;
-      // measure entire word in "font units"
-      for (let c = 0; c < word.length; c++) {
-        const ch = word[c];
-        const glyph = glyphMap[ch] || glyphMap['?']; // fallback
-        if (glyph) {
-          wordWidthUnits += glyph.advance; // add adv
-        }
-      }
-      // add space if not first word in line
-      if (currentLineWidthUnits > 0 && word.length > 0) {
-        wordWidthUnits += (glyphMap[' ']?.advance || 300); // assume space adv
-      }
-
-      // check if we exceed max width
-      if (currentLineWidthUnits + wordWidthUnits > maxWidthUnits && currentLineWidthUnits > 0) {
-        // new line
-        yUnits += lineHeightUnits;
-        currentLineWidthUnits = 0;
-      }
-      // place word
-      // for each character in word
-      // if needed, place a space char first
-      if (currentLineWidthUnits > 0 && word.length > 0) {
-        // place the space char
-        shapes.push({
-          glyph: glyphMap[' '] || null,
-          xUnits: currentLineWidthUnits,
-          yUnits: yUnits,
+            updatePreview();
         });
-        currentLineWidthUnits += (glyphMap[' ']?.advance || 300);
-      }
-      for (let c = 0; c < word.length; c++) {
-        const ch = word[c];
-        const glyph = glyphMap[ch] || glyphMap['?'];
-        if (glyph) {
-          shapes.push({
-            glyph: glyph,
-            xUnits: currentLineWidthUnits,
-            yUnits: yUnits,
-          });
-          currentLineWidthUnits += glyph.advance;
-        }
-      }
-    }
-
-    // Now convert all "units" to actual px
-    // and offset them by startX, startY
-    let finalShapes = shapes.map(s => {
-      return {
-        path: s.glyph?.path || "",
-        x: startX + (s.xUnits * pxPerUnit),
-        y: startY + (s.yUnits * pxPerUnit),
-        scale: fontScale // we apply the same scale in both x/y
-      };
-    });
-
-    return finalShapes;
-  }
-
-  /**
-   * 4) Render the shapes on the preview canvas
-   *    - We'll parse each `path` string into a Path2D, then transform it.
-   */
-  function renderShapes(shapes) {
-    ctx.save();
-    ctx.strokeStyle = 'black';
-    shapes.forEach(shape => {
-      if (!shape.path) return;
-      // Parse the SVG path
-      const p = new Path2D(shape.path);
-
-      // We'll do our own transform:
-      ctx.save();
-      // Move to (x, y)
-      ctx.translate(shape.x, shape.y);
-      // Flip Y? For typical fonts, up is negative Y. If you want it not flipped,
-      // you can skip or do ctx.scale(1, -1). But let's do no flip to match the preview
-      ctx.scale(shape.scale, shape.scale);
-
-      ctx.stroke(p);
-      ctx.restore();
-    });
-    ctx.restore();
-  }
-
-  /**
-   * 5) On "Plot" => send shapes to server
-   *    - We'll just pass an array of { path, x, y, scale } to the backend
-   */
-  async function onPlotClick() {
-    try {
-      plotBtn.disabled = true;
-      statusMessage.className = 'alert alert-info';
-      statusMessage.textContent = 'Plotting...';
-
-      const response = await fetch('/api/plot_svg_paths', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shapes: shapeData })
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        statusMessage.className = 'alert alert-success';
-        statusMessage.textContent = 'Plot completed!';
-      } else {
-        throw new Error(data.message || 'Plot failed');
-      }
-    } catch (err) {
-      statusMessage.className = 'alert alert-danger';
-      statusMessage.textContent = 'Error: ' + err.message;
-    } finally {
-      plotBtn.disabled = false;
-    }
-  }
-});
-</script>
+    </script>
 </body>
 </html>
