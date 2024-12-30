@@ -79,5 +79,3 @@ def test_plot():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 if name == 'main':
     app.run(host='0.0.0.0', port=8080)
-
-and heres the "fron end"
