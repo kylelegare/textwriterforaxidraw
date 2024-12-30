@@ -50,7 +50,7 @@
 
                         <div class="mb-3">
                             <label for="fontSize" class="form-label">Font Size</label>
-                            <input type="range" class="form-range" id="fontSize" min="8" max="36" value="12">
+                            <input type="range" class="form-range" id="fontSize" min="6" max="24" value="12">
                             <span id="fontSizeValue">12pt</span>
                         </div>
 
@@ -74,22 +74,13 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Constants for unit conversion
-            const POINTS_PER_INCH = 72;
-            const MM_PER_INCH = 25.4;
-            const POINTS_TO_MM = MM_PER_INCH / POINTS_PER_INCH;  // 0.35277777...
-
-            // Physical postcard dimensions in mm
-            const POSTCARD_WIDTH_MM = 152.4;  // 6 inches
-            const POSTCARD_HEIGHT_MM = 101.6;  // 4 inches
-
-            // Convert physical dimensions to points for canvas
-            const CANVAS_WIDTH_PT = (POSTCARD_WIDTH_MM / MM_PER_INCH) * POINTS_PER_INCH;
-            const CANVAS_HEIGHT_PT = (POSTCARD_HEIGHT_MM / MM_PER_INCH) * POINTS_PER_INCH;
+            const AXIDRAW_WIDTH_MM = 152.4;
+            const AXIDRAW_HEIGHT_MM = 101.6;
+            const MM_TO_PT = 2.83465;
 
             const canvas = document.getElementById('previewCanvas');
-            canvas.width = CANVAS_WIDTH_PT;
-            canvas.height = CANVAS_HEIGHT_PT;
+            canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PT;
+            canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PT;
 
             const ctx = canvas.getContext('2d');
             const messageText = document.getElementById('messageText');
@@ -106,49 +97,20 @@
             messageText.addEventListener('input', updatePreview);
 
             function updatePreview() {
-                // Clear canvas
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Draw border (margins)
                 ctx.strokeStyle = '#ddd';
-                const margin = 20;  // 20pt margins
-                ctx.strokeRect(margin, margin, canvas.width - 2*margin, canvas.height - 2*margin);
+                ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
-                // Set up text rendering
                 ctx.fillStyle = 'black';
                 const fontSizeVal = parseInt(fontSize.value);
                 ctx.font = `${fontSizeVal}pt PremiumUltra`;
 
-                // Word wrapping
-                const text = messageText.value;
-                const words = text.split(' ');
-                let line = '';
-                let y = margin + fontSizeVal + 5;  // Start position
-                const x = margin;
-
-                for (let word of words) {
-                    const testLine = line + (line ? ' ' : '') + word;
-                    const metrics = ctx.measureText(testLine);
-
-                    if (metrics.width > canvas.width - 2*margin && line) {
-                        ctx.fillText(line, x, y);
-                        line = word;
-                        y += fontSizeVal * 1.5;  // Line spacing
-
-                        // Check if we've exceeded canvas height
-                        if (y > canvas.height - margin) {
-                            break;
-                        }
-                    } else {
-                        line = testLine;
-                    }
-                }
-
-                // Draw remaining text
-                if (line && y <= canvas.height - margin) {
-                    ctx.fillText(line, x, y);
-                }
+                document.fonts.ready.then(() => {
+                    const text = messageText.value;
+                    ctx.fillText(text, 40, 60 + fontSizeVal);
+                });
             }
 
             plotBtn.addEventListener('click', async () => {

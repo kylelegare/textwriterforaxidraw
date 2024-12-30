@@ -6,14 +6,9 @@ import xml.etree.ElementTree as ET
 app = Flask(__name__)
 CORS(app)
 
-# Constants for unit conversion
-POINTS_PER_INCH = 72
-MM_PER_INCH = 25.4
-POINTS_TO_MM = MM_PER_INCH / POINTS_PER_INCH  # 0.35277777...
-
-# Physical dimensions
-POSTCARD_WIDTH_MM = 152.4  # 6 inches
-POSTCARD_HEIGHT_MM = 101.6  # 4 inches
+FIXED_SCALE = 0.002  # Reduced base scale
+AXIDRAW_WIDTH_MM = 152.4
+AXIDRAW_HEIGHT_MM = 101.6
 
 def get_glyph_info(character):
     tree = ET.parse("static/fonts/PremiumUltra54.svg")
@@ -26,76 +21,41 @@ def get_glyph_info(character):
             }
     return None
 
-def create_plotter_svg(text, font_size_pt):
-    # Calculate the scale factor to convert from font units to physical mm
-    # Standard PostScript font size is 1000 units = 1 em = font_size in points
-    # So if font_size is 12pt, we want 1000 units = 12pt = 12 * POINTS_TO_MM mm
-    scale_factor = (font_size_pt * POINTS_TO_MM) / 1000
+def create_plotter_svg(text, font_size_pt=12):
+    # Calculate size multiplier based on requested point size
+    size_multiplier = font_size_pt / 12.0
 
     paths = []
     x_offset = 0
-    y_offset = 0
-    margin_mm = 20 * POINTS_TO_MM  # 20pt margins converted to mm
 
-    words = text.split()
-    current_line = []
-    current_line_width = 0
+    for char in text:
+        if char == ' ':
+            x_offset += 750 * size_multiplier  # Scale word spacing
+            continue
 
-    # Word wrapping
-    for word in words:
-        word_width = 0
-        word_paths = []
-        word_offsets = []
+        glyph_info = get_glyph_info(char)
+        if glyph_info:
+            path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},0)" />'
+            paths.append(path)
+            x_offset += glyph_info['advance'] * size_multiplier  # Scale letter spacing
 
-        # Calculate word width and collect paths
-        for char in word:
-            glyph_info = get_glyph_info(char)
-            if glyph_info:
-                word_width += glyph_info['advance'] * scale_factor
-                word_paths.append(glyph_info['path'])
-                word_offsets.append(x_offset + word_width - (glyph_info['advance'] * scale_factor))
-
-        # Check if word fits on current line
-        if current_line_width + word_width + (750 * scale_factor if current_line else 0) <= POSTCARD_WIDTH_MM - 2 * margin_mm:
-            # Add word to current line
-            if current_line:
-                x_offset += 750 * scale_factor  # Word spacing
-                current_line_width += 750 * scale_factor
-            current_line.extend(zip(word_paths, word_offsets))
-            current_line_width += word_width
-        else:
-            # Add current line to paths
-            for path, offset in current_line:
-                paths.append(f'<path d="{path}" transform="translate({offset + margin_mm},{y_offset + margin_mm})" />')
-
-            # Start new line
-            y_offset += font_size_pt * POINTS_TO_MM * 1.5  # Line spacing
-            x_offset = 0
-            current_line = list(zip(word_paths, word_offsets))
-            current_line_width = word_width
-
-            # Check if we've exceeded the postcard height
-            if y_offset > POSTCARD_HEIGHT_MM - 2 * margin_mm:
-                break
-
-    # Add remaining line
-    for path, offset in current_line:
-        paths.append(f'<path d="{path}" transform="translate({offset + margin_mm},{y_offset + margin_mm})" />')
+    # Apply size multiplier to the base scale
+    adjusted_scale = FIXED_SCALE * size_multiplier
 
     svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg xmlns="http://www.w3.org/2000/svg"
              version="1.1"
-             viewBox="0 0 {POSTCARD_WIDTH_MM} {POSTCARD_HEIGHT_MM}"
-             height="{POSTCARD_HEIGHT_MM}mm"
-             width="{POSTCARD_WIDTH_MM}mm">
+             viewBox="0 0 {AXIDRAW_WIDTH_MM} {AXIDRAW_HEIGHT_MM}"
+             height="{AXIDRAW_HEIGHT_MM}mm"
+             width="{AXIDRAW_WIDTH_MM}mm">
             <g stroke="black"
                stroke-width="0.3"
                fill="none"
-               transform="scale(1,-1)">
+               transform="translate(40,60) scale({adjusted_scale},-{adjusted_scale})">
                 {"".join(paths)}
             </g>
         </svg>'''
-
+    print("Generated SVG:", svg)
     return svg
 
 @app.route('/')
@@ -111,7 +71,7 @@ def test_plot():
     try:
         data = request.json
         text = data.get('text', '')
-        font_size = float(data.get('fontSize', 12))  # Default to 12pt
+        font_size = float(data.get('fontSize', 12))  # Default to 12pt if not specified
 
         svg_content = create_plotter_svg(text, font_size)
         print("Generated SVG:", svg_content)
