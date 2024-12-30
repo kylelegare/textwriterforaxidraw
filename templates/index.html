@@ -55,6 +55,15 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="plotSize" class="form-label">Plot Size</label>
+                            <select class="form-select" id="plotSize">
+                                <option value="1">Regular</option>
+                                <option value="1.5">Large (50% bigger)</option>
+                                <option value="2">Biggest (100% bigger)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <button id="plotBtn" class="btn btn-primary w-100">Plot Message</button>
                         </div>
                     </div>
@@ -126,6 +135,7 @@
                         },
                         body: JSON.stringify({
                             text: messageText.value,
+                            size: parseFloat(document.getElementById('plotSize').value)
                         })
                     });
 

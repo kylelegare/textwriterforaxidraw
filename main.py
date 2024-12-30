@@ -21,20 +21,26 @@ def get_glyph_info(character):
             }
     return None
 
-def create_plotter_svg(text):
+def create_plotter_svg(text, size_multiplier=1.0):
     paths = []
     x_offset = 0
+    # Scale both the word spacing and letter spacing by the size multiplier
+    word_spacing = 750 * size_multiplier
 
     for char in text:
         if char == ' ':
-            x_offset += 250
+            x_offset += word_spacing
             continue
 
         glyph_info = get_glyph_info(char)
         if glyph_info:
             path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},0)" />'
             paths.append(path)
-            x_offset += glyph_info['advance']
+            # Scale the letter spacing by the size multiplier
+            x_offset += glyph_info['advance'] * size_multiplier
+
+    # Adjust the base scale by the size multiplier
+    adjusted_scale = FIXED_SCALE * size_multiplier
 
     svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -45,7 +51,7 @@ def create_plotter_svg(text):
             <g stroke="black"
                stroke-width="0.3"
                fill="none"
-               transform="translate(40,60) scale({FIXED_SCALE},-{FIXED_SCALE})">
+               transform="translate(40,60) scale({adjusted_scale},-{adjusted_scale})">
                 {"".join(paths)}
             </g>
         </svg>'''
@@ -65,8 +71,8 @@ def test_plot():
     try:
         data = request.json
         text = data.get('text', '')
-
-        svg_content = create_plotter_svg(text)
+        size = float(data.get('size', 1.0))  # Default to 1.0 if not provided
+        svg_content = create_plotter_svg(text, size)
         print("Generated SVG:", svg_content)
 
         ad = axidraw.AxiDraw()
@@ -88,9 +94,10 @@ def test_plot():
         print("Plot setup complete")
         ad.plot_run()
         print("Plot run complete")
-        ad.disconnect()
 
+        ad.disconnect()
         return jsonify({'status': 'success'})
+
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
