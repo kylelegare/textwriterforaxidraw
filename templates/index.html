@@ -111,30 +111,23 @@
                     const text = messageText.value;
                     const words = text.split(' ');
                     let line = '';
-                    let y = margin + fontSizeVal;
-                    const x = margin;
+                    let y = 80;  // Starting y position
 
                     for (let word of words) {
                         const testLine = line + (line ? ' ' : '') + word;
                         const metrics = ctx.measureText(testLine);
 
-                        if (metrics.width > canvas.width - 2*margin && line) {
-                            ctx.fillText(line, x, y);
+                        if (metrics.width > canvas.width - 80 && line) {
+                            ctx.fillText(line, 40, y);
                             line = word;
-                            y += fontSizeVal * 1.5;  // Line spacing
-
-                            // Check if we've exceeded canvas height
-                            if (y > canvas.height - margin) {
-                                break;
-                            }
+                            y += fontSizeVal * 1.5;
                         } else {
                             line = testLine;
                         }
                     }
 
-                    // Draw remaining text
-                    if (line && y <= canvas.height - margin) {
-                        ctx.fillText(line, x, y);
+                    if (line) {
+                        ctx.fillText(line, 40, y);
                     }
                 });
             }
