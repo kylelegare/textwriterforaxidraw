@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 from pyaxidraw import axidraw
 import xml.etree.ElementTree as ET
-app = Flask(name)
+app = Flask(__name__)
 CORS(app)
 FIXED_SCALE = 0.004
 AXIDRAW_WIDTH_MM = 152.4
