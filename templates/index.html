@@ -109,7 +109,33 @@
 
                 document.fonts.ready.then(() => {
                     const text = messageText.value;
-                    ctx.fillText(text, 40, 60 + fontSizeVal);
+                    const words = text.split(' ');
+                    let line = '';
+                    let y = margin + fontSizeVal;
+                    const x = margin;
+
+                    for (let word of words) {
+                        const testLine = line + (line ? ' ' : '') + word;
+                        const metrics = ctx.measureText(testLine);
+
+                        if (metrics.width > canvas.width - 2*margin && line) {
+                            ctx.fillText(line, x, y);
+                            line = word;
+                            y += fontSizeVal * 1.5;  // Line spacing
+
+                            // Check if we've exceeded canvas height
+                            if (y > canvas.height - margin) {
+                                break;
+                            }
+                        } else {
+                            line = testLine;
+                        }
+                    }
+
+                    // Draw remaining text
+                    if (line && y <= canvas.height - margin) {
+                        ctx.fillText(line, x, y);
+                    }
                 });
             }
 

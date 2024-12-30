@@ -27,17 +27,50 @@ def create_plotter_svg(text, font_size_pt=12):
 
     paths = []
     x_offset = 0
+    y_offset = 0
+    line_height = 1200  # Base line height
+    max_width = (AXIDRAW_WIDTH_MM - 80) / (FIXED_SCALE * size_multiplier)  # Convert mm to font units
 
-    for char in text:
-        if char == ' ':
-            x_offset += 750 * size_multiplier  # Scale word spacing
-            continue
+    words = text.split()
+    current_line = []
+    current_line_width = 0
 
-        glyph_info = get_glyph_info(char)
-        if glyph_info:
-            path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},0)" />'
-            paths.append(path)
-            x_offset += glyph_info['advance'] * size_multiplier  # Scale letter spacing
+    for word in words:
+        # Calculate width of this word
+        word_width = 0
+        word_paths = []
+        word_offsets = []
+
+        for char in word:
+            glyph_info = get_glyph_info(char)
+            if glyph_info:
+                word_width += glyph_info['advance']
+                word_paths.append(glyph_info['path'])
+                word_offsets.append(x_offset + word_width - glyph_info['advance'])
+
+        # Check if adding this word would exceed line width
+        if current_line_width + word_width + (750 if current_line else 0) <= max_width:
+            # Add word to current line
+            if current_line:
+                x_offset += 750  # Word spacing
+                current_line_width += 750
+            current_line.extend(zip(word_paths, word_offsets))
+            current_line_width += word_width
+            x_offset += word_width
+        else:
+            # Add current line to paths
+            for path, offset in current_line:
+                paths.append(f'<path d="{path}" transform="translate({offset},{y_offset})" />')
+
+            # Start new line
+            y_offset -= line_height
+            x_offset = word_width
+            current_line = list(zip(word_paths, [i for i in range(word_width - sum([1 for _ in word_paths]))]))
+            current_line_width = word_width
+
+    # Add remaining line
+    for path, offset in current_line:
+        paths.append(f'<path d="{path}" transform="translate({offset},{y_offset})" />')
 
     # Apply size multiplier to the base scale
     adjusted_scale = FIXED_SCALE * size_multiplier
