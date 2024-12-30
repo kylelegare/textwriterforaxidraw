@@ -45,7 +45,7 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="messageText" class="form-label">Message</label>
-                            <textarea class="form-control" id="messageText" rows="4" placeholder="Enter your message..."></textarea>
+                            <textarea class="form-control" id="messageText" rows="4" maxlength="100" placeholder="Enter your message..."></textarea>
                         </div>
 
                         <div class="mb-3">
@@ -74,13 +74,14 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const FIXED_SCALE = 0.004;  // Same as backend
             const AXIDRAW_WIDTH_MM = 152.4;
             const AXIDRAW_HEIGHT_MM = 101.6;
-            const MM_TO_PT = 2.83465;
+            const MM_TO_PX = 3.7795275591;  // 96 DPI / 25.4 mm per inch
 
             const canvas = document.getElementById('previewCanvas');
-            canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PT;
-            canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PT;
+            canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PX;
+            canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PX;
 
             const ctx = canvas.getContext('2d');
             const messageText = document.getElementById('messageText');
@@ -100,6 +101,7 @@
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+                // Draw border to show plotting area
                 ctx.strokeStyle = '#ddd';
                 ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
@@ -107,9 +109,38 @@
                 const fontSizeVal = parseInt(fontSize.value);
                 ctx.font = `${fontSizeVal}pt PremiumUltra`;
 
+                // Calculate max width based on physical plotter dimensions
+                const maxWidth = (canvas.width - 80) / (FIXED_SCALE * MM_TO_PX);
+                const lineHeight = 1000;  // Same as SVG font units
+                const startX = 40;
+                let startY = 60 + (1000 * FIXED_SCALE * MM_TO_PX);  // Match SVG y-offset
+
                 document.fonts.ready.then(() => {
                     const text = messageText.value;
-                    ctx.fillText(text, 40, 60 + fontSizeVal);
+                    const words = text.split(' ');
+                    let line = '';
+
+                    for (let word of words) {
+                        const testLine = line + (line ? ' ' : '') + word;
+                        const metrics = ctx.measureText(testLine);
+                        const scaledWidth = metrics.width / (FIXED_SCALE * MM_TO_PX);
+
+                        if (scaledWidth > maxWidth && line !== '') {
+                            ctx.fillText(line, startX, startY);
+                            line = word;
+                            startY += lineHeight * FIXED_SCALE * MM_TO_PX;
+
+                            if (startY > canvas.height - 40) {
+                                break;
+                            }
+                        } else {
+                            line = testLine;
+                        }
+                    }
+
+                    if (line !== '' && startY <= canvas.height - 40) {
+                        ctx.fillText(line, startX, startY);
+                    }
                 });
             }
 
