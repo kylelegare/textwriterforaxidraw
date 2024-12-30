@@ -49,8 +49,8 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="fontSize" class="form-label">Font Size</label>
-                            <input type="range" class="form-range" id="fontSize" min="6" max="24" value="12">
+                            <label for="fontSize" class="form-label">Preview Size</label>
+                            <input type="range" class="form-range" id="fontSize" min="8" max="36" value="12">
                             <span id="fontSizeValue">12pt</span>
                         </div>
 
@@ -109,26 +109,7 @@
 
                 document.fonts.ready.then(() => {
                     const text = messageText.value;
-                    const words = text.split(' ');
-                    let line = '';
-                    let y = 80;  // Starting y position
-
-                    for (let word of words) {
-                        const testLine = line + (line ? ' ' : '') + word;
-                        const metrics = ctx.measureText(testLine);
-
-                        if (metrics.width > canvas.width - 80 && line) {
-                            ctx.fillText(line, 40, y);
-                            line = word;
-                            y += fontSizeVal * 1.5;
-                        } else {
-                            line = testLine;
-                        }
-                    }
-
-                    if (line) {
-                        ctx.fillText(line, 40, y);
-                    }
+                    ctx.fillText(text, 40, 60 + fontSizeVal);
                 });
             }
 
@@ -145,7 +126,6 @@
                         },
                         body: JSON.stringify({
                             text: messageText.value,
-                            fontSize: parseInt(fontSize.value)
                         })
                     });
 
