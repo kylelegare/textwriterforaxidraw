@@ -65,7 +65,12 @@ def create_plotter_svg(text, font_size_pt=12):
             # Start new line
             y_offset -= line_height
             x_offset = word_width
-            current_line = list(zip(word_paths, [i for i in range(word_width - sum([1 for _ in word_paths]))]))
+            word_offsets = [0]
+            for char_idx in range(1, len(word_paths)):
+                glyph_info = get_glyph_info(word[char_idx])
+                if glyph_info:
+                    word_offsets.append(word_offsets[-1] + glyph_info['advance'])
+            current_line = list(zip(word_paths, word_offsets))
             current_line_width = word_width
 
     # Add remaining line
