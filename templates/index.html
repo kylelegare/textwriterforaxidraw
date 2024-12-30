@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AxiDraw Postcard Writer</title>
+  <!-- Bootstrap CSS (optional) -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
   <style>
-    /* Include custom font. Adjust the URL/path if needed. */
+    /* Include your custom font. Adjust URL/path if needed. */
     @font-face {
       font-family: 'PremiumUltra';
       src: url('/static/fonts/PremiumUltra54.ttf') format('truetype');
@@ -53,11 +54,11 @@
           <div class="card-body">
             <div class="mb-3">
               <label for="messageText" class="form-label">Message</label>
+              <!-- Removed maxlength to allow longer input -->
               <textarea
                 class="form-control"
                 id="messageText"
-                rows="4"
-                maxlength="100"
+                rows="5"
                 placeholder="Enter your message..."
               ></textarea>
             </div>
@@ -101,14 +102,14 @@
       // Dimensions for AxiDraw Mini in mm
       const AXIDRAW_WIDTH_MM = 152.4;
       const AXIDRAW_HEIGHT_MM = 101.6;
-      // Convert mm to px at ~96 DPI
+      // Convert mm to px at ~96DPI
       const MM_TO_PX = 3.7795275591;
 
       // We'll store the text layout here: array of {char, x, y} in px
       let layoutData = [];
 
       const canvas = document.getElementById('previewCanvas');
-      // Set canvas pixel dimensions to postcard size at ~96 DPI
+      // Set canvas pixel dimensions
       canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PX;   
       canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PX; 
 
@@ -120,7 +121,7 @@
       const plotBtn = document.getElementById('plotBtn');
       const statusMessage = document.getElementById('statusMessage');
 
-      // We'll use an offscreen canvas to measure text
+      // Offscreen canvas for measuring
       const offscreenCanvas = document.createElement('canvas');
       const offscreenCtx = offscreenCanvas.getContext('2d');
 
@@ -131,13 +132,14 @@
 
       messageText.addEventListener('input', updatePreview);
 
+      // MAIN PREVIEW UPDATE
       function updatePreview() {
         // Clear preview
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw bounding rectangle as a "safe area" margin
-        // Let's say 10 mm margin on each side => 10 * MM_TO_PX
+        // Draw bounding rectangle (safe margin)
+        // Let's do 10 mm margin => 10 * MM_TO_PX
         const marginPx = 10 * MM_TO_PX;
         ctx.strokeStyle = '#ddd';
         ctx.strokeRect(
@@ -156,101 +158,77 @@
           canvas.width - 2 * marginPx
         );
 
-        // Render that layout onto the main preview canvas
+        // Render it on the main canvas
         renderPreview(layoutData, parseInt(fontSizeRange.value));
       }
 
       /**
-       * Word-wrap the text, returning array of {char, x, y}
+       * Word-wrap the text to fit maxWidthPx, returning array of {char, x, y}
        */
       function computeLayout(text, fontSizePx, startX, startY, maxWidthPx) {
-        // Setup font for measuring in the offscreen canvas
         offscreenCtx.font = `${fontSizePx}px PremiumUltra`;
         offscreenCtx.textBaseline = 'top';
 
-        const words = text.split(' ');
-        const lineSpacing = fontSizePx * 1.2; // normal-ish line spacing
+        // Split on ANY whitespace
+        const words = text.split(/\s+/);
+        const lineSpacing = fontSizePx * 1.2;
 
-        // We'll track x while building each line
         let x = startX;
         let y = startY;
         let layout = [];
-        let currentLine = '';
-        let spaceWidth = offscreenCtx.measureText(' ').width;
+        let currentLine = [];
+        let currentLineWidth = 0;
+        const spaceWidth = offscreenCtx.measureText(' ').width;
 
+        // Build lines
         for (let i = 0; i < words.length; i++) {
           const w = words[i];
-          const wordWidth = offscreenCtx.measureText(w).width;
-          // If there's already text in the line, we add space + word
-          const neededWidth = (currentLine === '' ? 0 : spaceWidth) + wordWidth;
+          const wWidth = offscreenCtx.measureText(w).width;
+          let needed = (currentLine.length > 0 ? spaceWidth : 0) + wWidth;
 
-          // If adding this word would exceed maxWidth, line-break
-          if (x + neededWidth > startX + maxWidthPx && currentLine !== '') {
-            // Lay out the entire line so far
-            layout.push(...layoutLine(currentLine, offscreenCtx, fontSizePx, x, y, startX));
-            // Move down to next line
-            x = startX;
+          // If adding this word exceeds max line width => break line
+          if (currentLineWidth + needed > maxWidthPx && currentLine.length > 0) {
+            // Lay out the current line
+            layout.push(...layoutLine(currentLine.join(' '), offscreenCtx, fontSizePx, x, y, startX));
+            // Move down one line
             y += lineSpacing;
-            currentLine = w;
+            currentLine = [w];
+            currentLineWidth = wWidth;
+            x = startX + wWidth;  // track the end of the word
           } else {
-            // Continue building the line
-            if (currentLine === '') {
-              currentLine = w;
-            } else {
-              currentLine += ' ' + w;
-            }
-            x += neededWidth;
+            // Continue current line
+            currentLine.push(w);
+            currentLineWidth += needed;
+            x = startX + currentLineWidth;
           }
         }
 
         // Last line
-        if (currentLine !== '') {
-          layout.push(...layoutLine(currentLine, offscreenCtx, fontSizePx, x, y, startX));
+        if (currentLine.length > 0) {
+          layout.push(...layoutLine(currentLine.join(' '), offscreenCtx, fontSizePx, x, y, startX));
         }
 
         return layout;
       }
 
       /**
-       * Take a string (currentLine), measure each char, and produce array of {char, x, y}
-       * We'll assume a left-to-right top baseline approach for simplicity.
+       * Convert a string into array of {char, x, y}.
+       * We'll do left-to-right placement, top-based textBaseline.
        */
       function layoutLine(lineText, measureCtx, fontSizePx, endX, baselineY, lineStartX) {
         const results = [];
-
-        // If we want left-justified text:
-        //   total line width = measureCtx.measureText(lineText).width
-        //   we place from lineStartX to lineStartX + totalLineWidth
-        let totalWidth = measureCtx.measureText(lineText).width;
-        let xPointer = lineStartX;
-
-        // Split the line into tokens
-        const tokens = lineText.split(' ');
-        for (let t = 0; t < tokens.length; t++) {
-          const token = tokens[t];
-          for (let c = 0; c < token.length; c++) {
-            const ch = token[c];
-            const chWidth = measureCtx.measureText(ch).width;
-            // We used textBaseline='top', so place the char at baselineY - fontSizePx if we want baseline alignment.
-            // But let's just do top alignment for simplicity:
-            results.push({
-              char: ch,
-              x: xPointer,
-              y: baselineY
-            });
-            xPointer += chWidth;
-          }
-          // space after each token except last
-          if (t < tokens.length - 1) {
-            results.push({
-              char: ' ',
-              x: xPointer,
-              y: baselineY
-            });
-            xPointer += measureCtx.measureText(' ').width;
-          }
+        let xCursor = lineStartX; 
+        for (let i = 0; i < lineText.length; i++) {
+          const ch = lineText[i];
+          const chW = measureCtx.measureText(ch).width;
+          // Place the char at (xCursor, baselineY)
+          results.push({
+            char: ch,
+            x: xCursor,
+            y: baselineY
+          });
+          xCursor += chW;
         }
-
         return results;
       }
 
@@ -260,7 +238,7 @@
       function renderPreview(layout, fontSizePx) {
         ctx.fillStyle = 'black';
         ctx.font = `${fontSizePx}px PremiumUltra`;
-        ctx.textBaseline = 'top'; 
+        ctx.textBaseline = 'top';
 
         layout.forEach(item => {
           ctx.fillText(item.char, item.x, item.y);
@@ -268,7 +246,7 @@
       }
 
       /**
-       * On "Plot Message", POST layout data to server
+       * On "Plot Message", send layout to server
        */
       plotBtn.addEventListener('click', async () => {
         try {
@@ -300,7 +278,7 @@
         }
       });
 
-      // Initial drawing
+      // Initial
       updatePreview();
     });
   </script>

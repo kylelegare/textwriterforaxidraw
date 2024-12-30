@@ -11,21 +11,21 @@ CORS(app)
 AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
 
-# Relationship between px (at 96 dpi) and mm
-# 1 px ~ 0.2645833 mm => 1 mm ~ 3.7795275591 px
+# Relationship between px (at ~96 dpi) and mm
 MM_PER_PX = 1.0 / 3.7795275591
 
-# Base scale for glyphs (ex: your old FIXED_SCALE of 0.004 at 12px font)
+# We'll define a base scale for the SVG font
+# If "12 px" = scale 0.004, then "24 px" = scale 0.008, etc.
 BASE_SCALE = 0.004
-BASE_FONT_SIZE_PX = 12  # If the user picks 12px => scale = BASE_SCALE
+BASE_FONT_SIZE_PX = 12
 
+# Path to the SVG font file
 FONT_SVG_PATH = "static/fonts/PremiumUltra54.svg"
-
 
 def get_glyph_info(character):
     """
-    Look up the <glyph> for the given character in the SVG font file,
-    return its path 'd' plus an advance width if needed.
+    Look up the <glyph> for the given character in the SVG font,
+    return {'path': '...', 'advance': 1000.0} or None if not found.
     """
     try:
         tree = ET.parse(FONT_SVG_PATH)
@@ -40,16 +40,13 @@ def get_glyph_info(character):
     except (ET.ParseError, FileNotFoundError) as e:
         raise Exception(f"Error loading font file: {str(e)}")
 
-
 def create_svg_from_layout(layout, font_size_px):
     """
-    layout: array of { 'char': 'H', 'x': 123.45, 'y': 67.89 } in pixel coordinates
-    font_size_px: the user-chosen font size in px
+    layout: array of { 'char': 'H', 'x': 123.45, 'y': 67.89 } in px
+    font_size_px: the user-chosen font size
+    We'll transform px->mm, then apply scale for each glyph.
     """
-    # Suppose scale is linear w.r.t. font size.
-    # If user chooses 12 px => scale = BASE_SCALE
-    # If user chooses 24 px => scale = BASE_SCALE * 2
-    # etc.
+    # linear scale factor vs. base 12 px
     scale_factor = BASE_SCALE * (font_size_px / BASE_FONT_SIZE_PX)
 
     paths = []
@@ -59,17 +56,15 @@ def create_svg_from_layout(layout, font_size_px):
         px_x = float(item['x'])
         px_y = float(item['y'])
 
-        # Convert from px to mm
+        # Convert px -> mm
         mm_x = px_x * MM_PER_PX
         mm_y = px_y * MM_PER_PX
 
         glyph_info = get_glyph_info(ch)
         if glyph_info and glyph_info['path']:
-            # Place each glyph at (mm_x, mm_y), then apply scale in X and Y
-            # Negative Y scale flips the font so that +Y goes downwards for the plotter
+            # negative Y to flip so pen goes downward
             path_elt = f'<path d="{glyph_info["path"]}" ' \
-                       f'transform="translate({mm_x:.3f},{mm_y:.3f}) ' \
-                       f'scale({scale_factor:.4f},-{scale_factor:.4f})" />'
+                       f'transform="translate({mm_x:.3f},{mm_y:.3f}) scale({scale_factor:.4f}, -{scale_factor:.4f})" />'
             paths.append(path_elt)
 
     svg_content = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -83,37 +78,37 @@ def create_svg_from_layout(layout, font_size_px):
 '''
     return svg_content
 
-
 @app.route('/')
 def home():
     # Render the index.html from templates folder
     return render_template('index.html')
-
 
 @app.route('/static/fonts/<path:filename>')
 def serve_font(filename):
     # Serve your TTF or SVG font from /static/fonts
     return send_from_directory(os.path.join(app.root_path, 'static', 'fonts'), filename)
 
-
 @app.route('/api/test_plot', methods=['POST'])
 def test_plot():
     """
-    Receives JSON: { layout: [...], fontSizePx: 12 }
+    Receives JSON: { "layout": [...], "fontSizePx": 12 }
     layout => array of { 'char': 'H', 'x': 100, 'y': 50 } in px
     """
     try:
         data = request.json
-        if 'layout' not in data or not data['layout']:
+        if not data or 'layout' not in data:
             return jsonify({'status': 'error', 'message': 'No layout data provided'}), 400
 
         layout = data['layout']
         font_size_px = data.get('fontSizePx', 12)
 
+        if not layout:
+            return jsonify({'status': 'error', 'message': 'Layout is empty'}), 400
+
         # Build the final SVG
         svg_content = create_svg_from_layout(layout, font_size_px)
 
-        # Connect to AxiDraw and plot
+        # Connect to AxiDraw
         ad = axidraw.AxiDraw()
         ad.interactive()
         ad.connect()
@@ -135,10 +130,9 @@ def test_plot():
 
         return jsonify({'status': 'success'})
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error in test_plot: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
 if __name__ == '__main__':
-    # Run on localhost:8080, adjust as desired
+    # Run on localhost:8080, debug mode
     app.run(host='0.0.0.0', port=8080, debug=True)
