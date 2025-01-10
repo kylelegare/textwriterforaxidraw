@@ -89,6 +89,25 @@
             const plotBtn = document.getElementById('plotBtn');
             const statusMessage = document.getElementById('statusMessage');
 
+            function measureAndWrapText(ctx, text, maxWidth) {
+                const words = text.split(' ');
+                const lines = [];
+                let currentLine = words[0];
+
+                for (let i = 1; i < words.length; i++) {
+                    const word = words[i];
+                    const width = ctx.measureText(currentLine + ' ' + word).width;
+                    if (width < maxWidth) {
+                        currentLine += ' ' + word;
+                    } else {
+                        lines.push(currentLine);
+                        currentLine = word;
+                    }
+                }
+                lines.push(currentLine);
+                return lines;
+            }
+
             fontSize.addEventListener('input', (e) => {
                 fontSizeValue.textContent = `${e.target.value}pt`;
                 updatePreview();
@@ -106,10 +125,32 @@
                 ctx.fillStyle = 'black';
                 const fontSizeVal = parseInt(fontSize.value);
                 ctx.font = `${fontSizeVal}pt PremiumUltra`;
+                const lineHeight = fontSizeVal * 1.5;
 
                 document.fonts.ready.then(() => {
                     const text = messageText.value;
-                    ctx.fillText(text, 40, 60 + fontSizeVal);
+                    const maxWidth = canvas.width - 80; // Accounting for padding
+                    const lines = measureAndWrapText(ctx, text, maxWidth);
+
+                    // Draw each line
+                    lines.forEach((line, index) => {
+                        const y = 60 + fontSizeVal + (index * lineHeight);
+                        // Only draw the line if it fits within the canvas height
+                        if (y < canvas.height - 40) {
+                            ctx.fillText(line, 40, y);
+                        }
+                    });
+
+                    // Update status if text overflows
+                    const totalTextHeight = lines.length * lineHeight;
+                    const availableHeight = canvas.height - 80;
+                    if (totalTextHeight > availableHeight) {
+                        statusMessage.className = 'alert alert-warning';
+                        statusMessage.textContent = 'Warning: Text exceeds available space';
+                    } else {
+                        statusMessage.className = 'alert alert-info';
+                        statusMessage.textContent = 'Ready';
+                    }
                 });
             }
 
