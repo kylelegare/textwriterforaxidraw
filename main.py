@@ -48,6 +48,7 @@ def create_plotter_svg(text):
                 {"".join(paths)}
             </g>
         </svg>'''
+    print("Generated SVG:", svg)  # Debug print
     return svg
 
 @app.route('/')
@@ -65,9 +66,11 @@ def test_plot():
         text = data.get('text', '')
 
         # Calculate max width based on available space
-        # Available width is total width minus margins on both sides
         available_width_mm = AXIDRAW_WIDTH_MM - (2 * MARGIN_MM)
         max_width = int(available_width_mm / FIXED_SCALE)
+
+        # Debug print
+        print(f"Available width: {available_width_mm}mm, Max width in SVG units: {max_width}")
 
         # Split text into lines
         words = text.split()
@@ -79,10 +82,14 @@ def test_plot():
             # Calculate word width
             word_width = sum(get_glyph_info(c)['advance'] if get_glyph_info(c) else 750 for c in word)
 
+            # Debug print
+            print(f"Word: {word}, Width: {word_width}")
+
             if current_width + word_width <= max_width:
                 current_line.append(word)
                 current_width += word_width + 750  # Add space width
             else:
+                print(f"Line complete at width: {current_width}")
                 lines.append(' '.join(current_line))
                 current_line = [word]
                 current_width = word_width + 750
@@ -91,6 +98,12 @@ def test_plot():
             lines.append(' '.join(current_line))
 
         formatted_text = '\n'.join(lines)
+
+        # Debug print
+        print(f"Formatted into {len(lines)} lines:")
+        for i, line in enumerate(lines):
+            print(f"Line {i}: {line}")
+
         svg_content = create_plotter_svg(formatted_text)
 
         ad = axidraw.AxiDraw()
@@ -106,6 +119,9 @@ def test_plot():
         ad.options.speed_pendown = 25
         ad.options.pen_pos_down = 60
         ad.options.pen_pos_up = 40
+
+        # Debug print plotter status
+        print("Connected to AxiDraw, preparing to plot")
 
         ad.plot_setup(svg_content)
         print("Plot setup complete")
