@@ -1,6 +1,3 @@
-Yes, I see the issue. At the top of the Python file, we need to define `app` using Flask. Let me share the complete file with all necessary imports:
-
-```python
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 from pyaxidraw import axidraw
@@ -123,6 +120,3 @@ def test_plot():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
-```
-
-The error was happening because we didn't have `app = Flask(__name__)` defined at the top of the file. The rest of the code remains the same, but now includes all the necessary imports and initialization. This should resolve the NameError you were seeing.
