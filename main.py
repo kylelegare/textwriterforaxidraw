@@ -9,7 +9,7 @@ CORS(app)
 FIXED_SCALE = 0.004
 AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
-LINE_HEIGHT = 1000  # Base value for vertical spacing between lines
+MARGIN_MM = 15  # Reduced from 40mm to 15mm margin on each side
 
 def get_glyph_info(character):
     tree = ET.parse("static/fonts/PremiumUltra54.svg")
@@ -23,25 +23,17 @@ def get_glyph_info(character):
     return None
 
 def create_plotter_svg(text):
-    # Split text into lines (split by newline character)
-    lines = text.split('\n')
     paths = []
-    y_offset = 0
-
-    for line in lines:
-        x_offset = 0
-        for char in line:
-            if char == ' ':
-                x_offset += 750
-                continue
-            glyph_info = get_glyph_info(char)
-            if glyph_info:
-                # Note the y_offset is negative because SVG Y coordinates go down
-                path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},{y_offset})" />'
-                paths.append(path)
-                x_offset += glyph_info['advance']
-        # Move to next line
-        y_offset -= LINE_HEIGHT
+    x_offset = 0
+    for char in text:
+        if char == ' ':
+            x_offset += 750
+            continue
+        glyph_info = get_glyph_info(char)
+        if glyph_info:
+            path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},0)" />'
+            paths.append(path)
+            x_offset += glyph_info['advance']
 
     svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -52,11 +44,10 @@ def create_plotter_svg(text):
             <g stroke="black"
                stroke-width="0.3"
                fill="none"
-               transform="translate(40,60) scale({FIXED_SCALE},-{FIXED_SCALE})">
+               transform="translate({MARGIN_MM},{MARGIN_MM + 45}) scale({FIXED_SCALE},-{FIXED_SCALE})">
                 {"".join(paths)}
             </g>
         </svg>'''
-    print("Generated SVG:", svg)
     return svg
 
 @app.route('/')
@@ -73,16 +64,21 @@ def test_plot():
         data = request.json
         text = data.get('text', '')
 
-        # Convert the text to have explicit newlines where we want line breaks
-        max_width = int((AXIDRAW_WIDTH_MM - 80) / FIXED_SCALE)  # Approximate max width in font units
+        # Calculate max width based on available space
+        # Available width is total width minus margins on both sides
+        available_width_mm = AXIDRAW_WIDTH_MM - (2 * MARGIN_MM)
+        max_width = int(available_width_mm / FIXED_SCALE)
+
+        # Split text into lines
+        words = text.split()
         lines = []
         current_line = []
         current_width = 0
 
-        words = text.split()
         for word in words:
             # Calculate word width
             word_width = sum(get_glyph_info(c)['advance'] if get_glyph_info(c) else 750 for c in word)
+
             if current_width + word_width <= max_width:
                 current_line.append(word)
                 current_width += word_width + 750  # Add space width
@@ -94,9 +90,7 @@ def test_plot():
         if current_line:
             lines.append(' '.join(current_line))
 
-        # Join lines with newline character
         formatted_text = '\n'.join(lines)
-
         svg_content = create_plotter_svg(formatted_text)
 
         ad = axidraw.AxiDraw()
