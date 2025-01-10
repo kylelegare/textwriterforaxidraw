@@ -1,3 +1,38 @@
+Yes, I see the issue. At the top of the Python file, we need to define `app` using Flask. Let me share the complete file with all necessary imports:
+
+```python
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_cors import CORS
+from pyaxidraw import axidraw
+import xml.etree.ElementTree as ET
+
+app = Flask(__name__)    # This line was missing and causing the NameError
+CORS(app)
+
+FIXED_SCALE = 0.004
+AXIDRAW_WIDTH_MM = 152.4
+AXIDRAW_HEIGHT_MM = 101.6
+MARGIN_MM = 15  # Reduced from 40mm to 15mm margin on each side
+
+def get_glyph_info(character):
+    tree = ET.parse("static/fonts/PremiumUltra54.svg")
+    root = tree.getroot()
+    for glyph in root.findall(".//*[@unicode]"):
+        if glyph.get('unicode') == character:
+            return {
+                'path': glyph.get('d'),
+                'advance': float(glyph.get('horiz-adv-x', 1000))
+            }
+    return None
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/static/fonts/<path:filename>')
+def serve_font(filename):
+    return send_from_directory('static/fonts', filename)
+
 @app.route('/api/test_plot', methods=['POST'])
 def test_plot():
     try:
@@ -85,3 +120,9 @@ def test_plot():
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+```
+
+The error was happening because we didn't have `app = Flask(__name__)` defined at the top of the file. The rest of the code remains the same, but now includes all the necessary imports and initialization. This should resolve the NameError you were seeing.
