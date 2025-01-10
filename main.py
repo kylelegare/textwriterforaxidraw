@@ -2,11 +2,15 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 from pyaxidraw import axidraw
 import xml.etree.ElementTree as ET
+
 app = Flask(__name__)
 CORS(app)
+
 FIXED_SCALE = 0.004
 AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
+LINE_HEIGHT = 1000  # Base value for vertical spacing between lines
+
 def get_glyph_info(character):
     tree = ET.parse("static/fonts/PremiumUltra54.svg")
     root = tree.getroot()
@@ -17,18 +21,28 @@ def get_glyph_info(character):
                 'advance': float(glyph.get('horiz-adv-x', 1000))
             }
     return None
+
 def create_plotter_svg(text):
+    # Split text into lines (split by newline character)
+    lines = text.split('\n')
     paths = []
-    x_offset = 0
-    for char in text:
-        if char == ' ':
-            x_offset += 750
-            continue
-        glyph_info = get_glyph_info(char)
-        if glyph_info:
-            path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},0)" />'
-            paths.append(path)
-            x_offset += glyph_info['advance']
+    y_offset = 0
+
+    for line in lines:
+        x_offset = 0
+        for char in line:
+            if char == ' ':
+                x_offset += 750
+                continue
+            glyph_info = get_glyph_info(char)
+            if glyph_info:
+                # Note the y_offset is negative because SVG Y coordinates go down
+                path = f'<path d="{glyph_info["path"]}" transform="translate({x_offset},{y_offset})" />'
+                paths.append(path)
+                x_offset += glyph_info['advance']
+        # Move to next line
+        y_offset -= LINE_HEIGHT
+
     svg = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg xmlns="http://www.w3.org/2000/svg"
              version="1.1"
@@ -44,38 +58,71 @@ def create_plotter_svg(text):
         </svg>'''
     print("Generated SVG:", svg)
     return svg
+
 @app.route('/')
 def home():
     return render_template('index.html')
+
 @app.route('/static/fonts/<path:filename>')
 def serve_font(filename):
     return send_from_directory('static/fonts', filename)
+
 @app.route('/api/test_plot', methods=['POST'])
 def test_plot():
     try:
         data = request.json
         text = data.get('text', '')
-        svg_content = create_plotter_svg(text)
-        print("Generated SVG:", svg_content)
+
+        # Convert the text to have explicit newlines where we want line breaks
+        max_width = int((AXIDRAW_WIDTH_MM - 80) / FIXED_SCALE)  # Approximate max width in font units
+        lines = []
+        current_line = []
+        current_width = 0
+
+        words = text.split()
+        for word in words:
+            # Calculate word width
+            word_width = sum(get_glyph_info(c)['advance'] if get_glyph_info(c) else 750 for c in word)
+            if current_width + word_width <= max_width:
+                current_line.append(word)
+                current_width += word_width + 750  # Add space width
+            else:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+                current_width = word_width + 750
+
+        if current_line:
+            lines.append(' '.join(current_line))
+
+        # Join lines with newline character
+        formatted_text = '\n'.join(lines)
+
+        svg_content = create_plotter_svg(formatted_text)
+
         ad = axidraw.AxiDraw()
         ad.interactive()
         ad.connect()
+
         if not ad.connected:
             raise Exception("Failed to connect to AxiDraw")
+
         ad.options.mode = "align"
         ad.update()
         ad.options.mode = "plot"
         ad.options.speed_pendown = 25
         ad.options.pen_pos_down = 60
         ad.options.pen_pos_up = 40
+
         ad.plot_setup(svg_content)
         print("Plot setup complete")
         ad.plot_run()
         print("Plot run complete")
+
         ad.disconnect()
         return jsonify({'status': 'success'})
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
