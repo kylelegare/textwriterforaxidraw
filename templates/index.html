@@ -1,193 +1,219 @@
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AxiDraw Postcard Writer</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        @font-face {
-            font-family: 'PremiumUltra';
-            src: url('/static/fonts/PremiumUltra54.ttf') format('truetype');
-        }
-        #previewCanvas {
-            width: 100%;
-            height: auto;
-            border: 1px solid var(--bs-border-color);
-            background-color: white;
-        }
-        #fontSizeValue {
-            display: inline-block;
-            min-width: 40px;
-            text-align: right;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AxiDraw Postcard Writer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'PremiumUltra';
+      src: url('/static/fonts/PremiumUltra54.ttf') format('truetype');
+    }
+    #previewCanvas {
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--bs-border-color);
+      background-color: white;
+    }
+    #fontSizeValue {
+      display: inline-block;
+      min-width: 40px;
+      text-align: right;
+    }
+  </style>
 </head>
 <body>
-    <div class="container py-4">
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Postcard Preview</h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="previewCanvas"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Controls</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="messageText" class="form-label">Message</label>
-                            <textarea class="form-control" id="messageText" rows="4" placeholder="Enter your message..."></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="fontSize" class="form-label">Preview Size</label>
-                            <input type="range" class="form-range" id="fontSize" min="8" max="36" value="12">
-                            <span id="fontSizeValue">12pt</span>
-                        </div>
-
-                        <div class="mb-3">
-                            <button id="plotBtn" class="btn btn-primary w-100">Plot Message</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card mt-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Status</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="statusMessage" class="alert alert-info">Ready</div>
-                    </div>
-                </div>
-            </div>
+<div class="container py-4">
+  <div class="row">
+    <!-- Left column: preview -->
+    <div class="col-md-8">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Postcard Preview</h5>
         </div>
+        <div class="card-body">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+      </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const AXIDRAW_WIDTH_MM = 152.4;
-            const AXIDRAW_HEIGHT_MM = 101.6;
-            const MM_TO_PT = 2.83465;
+    <!-- Right column: controls + status -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Controls</h5>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label for="messageText" class="form-label">Message</label>
+            <textarea class="form-control" id="messageText" rows="4"
+                      placeholder="Enter your message..."></textarea>
+          </div>
 
-            const canvas = document.getElementById('previewCanvas');
-            canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PT;
-            canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PT;
+          <div class="mb-3">
+            <label for="fontSize" class="form-label">Preview Size</label>
+            <input type="range" class="form-range" id="fontSize" min="8" max="36" value="12">
+            <span id="fontSizeValue">12pt</span>
+          </div>
 
-            const ctx = canvas.getContext('2d');
-            const messageText = document.getElementById('messageText');
-            const fontSize = document.getElementById('fontSize');
-            const fontSizeValue = document.getElementById('fontSizeValue');
-            const plotBtn = document.getElementById('plotBtn');
-            const statusMessage = document.getElementById('statusMessage');
+          <div class="mb-3">
+            <button id="plotBtn" class="btn btn-primary w-100">Plot Message</button>
+          </div>
+        </div>
+      </div>
 
-            function measureAndWrapText(ctx, text, maxWidth) {
-                const words = text.split(' ');
-                const lines = [];
-                let currentLine = words[0];
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Status</h5>
+        </div>
+        <div class="card-body">
+          <div id="statusMessage" class="alert alert-info">Ready</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-                for (let i = 1; i < words.length; i++) {
-                    const word = words[i];
-                    const width = ctx.measureText(currentLine + ' ' + word).width;
-                    if (width < maxWidth) {
-                        currentLine += ' ' + word;
-                    } else {
-                        lines.push(currentLine);
-                        currentLine = word;
-                    }
-                }
-                lines.push(currentLine);
-                return lines;
-            }
+<script>
+  // --------------------------------------------------
+  // Canvas and Layout Setup
+  // --------------------------------------------------
+  document.addEventListener('DOMContentLoaded', () => {
+    const AXIDRAW_WIDTH_MM = 152.4;
+    const AXIDRAW_HEIGHT_MM = 101.6;
+    // 1 mm ~ 2.83465 points (common approximation), or pick your own ratio
+    const MM_TO_PT = 2.83465;
 
-            fontSize.addEventListener('input', (e) => {
-                fontSizeValue.textContent = `${e.target.value}pt`;
-                updatePreview();
-            });
+    const canvas = document.getElementById('previewCanvas');
+    // Size the canvas in pixels to represent the physical mm size
+    canvas.width = AXIDRAW_WIDTH_MM * MM_TO_PT;
+    canvas.height = AXIDRAW_HEIGHT_MM * MM_TO_PT;
 
-            messageText.addEventListener('input', updatePreview);
+    const ctx = canvas.getContext('2d');
+    const messageText = document.getElementById('messageText');
+    const fontSizeRange = document.getElementById('fontSize');
+    const fontSizeValue = document.getElementById('fontSizeValue');
+    const plotBtn = document.getElementById('plotBtn');
+    const statusMessage = document.getElementById('statusMessage');
 
-            function updatePreview() {
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // --------------------------------------------------
+    // Utility: measureAndWrapText
+    // --------------------------------------------------
+    function measureAndWrapText(ctx, text, maxWidth) {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = words[0];
 
-                ctx.strokeStyle = '#ddd';
-                ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+      for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const testLine = currentLine + ' ' + word;
+        const width = ctx.measureText(testLine).width;
+        if (width < maxWidth) {
+          currentLine = testLine;
+        } else {
+          lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      lines.push(currentLine);
+      return lines;
+    }
 
-                ctx.fillStyle = 'black';
-                const fontSizeVal = parseInt(fontSize.value);
-                ctx.font = `${fontSizeVal}pt PremiumUltra`;
-                const lineHeight = fontSizeVal * 1.5;
+    // --------------------------------------------------
+    // updatePreview
+    // --------------------------------------------------
+    function updatePreview() {
+      // Clear background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                document.fonts.ready.then(() => {
-                    const text = messageText.value;
-                    const maxWidth = canvas.width - 80; // Accounting for padding
-                    const lines = measureAndWrapText(ctx, text, maxWidth);
+      // Draw border
+      ctx.strokeStyle = '#ddd';
+      ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
-                    // Draw each line
-                    lines.forEach((line, index) => {
-                        const y = 60 + fontSizeVal + (index * lineHeight);
-                        // Only draw the line if it fits within the canvas height
-                        if (y < canvas.height - 40) {
-                            ctx.fillText(line, 40, y);
-                        }
-                    });
+      // Prepare text drawing
+      ctx.fillStyle = 'black';
+      const fontSizeVal = parseInt(fontSizeRange.value);
+      ctx.font = `${fontSizeVal}pt PremiumUltra`;
+      const lineHeight = fontSizeVal * 1.5;
 
-                    // Update status if text overflows
-                    const totalTextHeight = lines.length * lineHeight;
-                    const availableHeight = canvas.height - 80;
-                    if (totalTextHeight > availableHeight) {
-                        statusMessage.className = 'alert alert-warning';
-                        statusMessage.textContent = 'Warning: Text exceeds available space';
-                    } else {
-                        statusMessage.className = 'alert alert-info';
-                        statusMessage.textContent = 'Ready';
-                    }
-                });
-            }
+      // Get user text
+      const text = messageText.value;
+      const maxWidth = canvas.width - 80; // space for left/right margins
+      // Perform line wrapping in pixels
+      const lines = measureAndWrapText(ctx, text, maxWidth);
 
-            plotBtn.addEventListener('click', async () => {
-                try {
-                    plotBtn.disabled = true;
-                    statusMessage.className = 'alert alert-info';
-                    statusMessage.textContent = 'Plotting...';
+      // Draw each line
+      lines.forEach((line, index) => {
+        // start 60 px down from top, plus index * lineHeight
+        const y = 60 + fontSizeVal + (index * lineHeight);
+        if (y < canvas.height - 40) {
+          ctx.fillText(line, 40, y);
+        }
+      });
 
-                    const response = await fetch('/api/test_plot', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            text: messageText.value,
-                        })
-                    });
+      // Check if text overflows
+      const totalTextHeight = lines.length * lineHeight;
+      const availableHeight = canvas.height - 80;
+      if (totalTextHeight > availableHeight) {
+        statusMessage.className = 'alert alert-warning';
+        statusMessage.textContent = 'Warning: Text exceeds available space';
+      } else {
+        statusMessage.className = 'alert alert-info';
+        statusMessage.textContent = 'Ready';
+      }
+    }
 
-                    const data = await response.json();
+    // --------------------------------------------------
+    // Event Handlers
+    // --------------------------------------------------
+    fontSizeRange.addEventListener('input', (e) => {
+      fontSizeValue.textContent = `${e.target.value}pt`;
+      updatePreview();
+    });
 
-                    if (data.status === 'success') {
-                        statusMessage.className = 'alert alert-success';
-                        statusMessage.textContent = 'Plot completed!';
-                    } else {
-                        throw new Error(data.message);
-                    }
-                } catch (error) {
-                    statusMessage.className = 'alert alert-danger';
-                    statusMessage.textContent = 'Error: ' + error.message;
-                } finally {
-                    plotBtn.disabled = false;
-                }
-            });
+    messageText.addEventListener('input', updatePreview);
 
-            updatePreview();
+    // Clicking "Plot Message" → send wrapped lines to the server
+    plotBtn.addEventListener('click', async () => {
+      try {
+        plotBtn.disabled = true;
+        statusMessage.className = 'alert alert-info';
+        statusMessage.textContent = 'Plotting...';
+
+        // Re-compute wrap in the same way as we do for preview
+        const fontSizeVal = parseInt(fontSizeRange.value);
+        ctx.font = `${fontSizeVal}pt PremiumUltra`;
+        const maxWidth = canvas.width - 80;
+        const lines = measureAndWrapText(ctx, messageText.value, maxWidth);
+
+        // Send these lines to the back end
+        const response = await fetch('/api/test_plot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lines: lines })
         });
-    </script>
+
+        const data = await response.json();
+        if (data.status === 'success') {
+          statusMessage.className = 'alert alert-success';
+          statusMessage.textContent = 'Plot completed!';
+        } else {
+          throw new Error(data.message);
+        }
+
+      } catch (error) {
+        statusMessage.className = 'alert alert-danger';
+        statusMessage.textContent = 'Error: ' + error.message;
+      } finally {
+        plotBtn.disabled = false;
+      }
+    });
+
+    // Initial preview render
+    document.fonts.ready.then(updatePreview);
+  });
+</script>
 </body>
 </html>
