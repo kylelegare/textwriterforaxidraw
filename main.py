@@ -9,11 +9,11 @@ CORS(app)
 # --------------------------------------------------------------------
 # Constants & Font Handling
 # --------------------------------------------------------------------
-FIXED_SCALE = 0.002            # Scale from font units → device space
+FIXED_SCALE = 0.0025           # Scale from font units → device space
 AXIDRAW_WIDTH_MM = 152.4       # Physical width in mm (Mini)
 AXIDRAW_HEIGHT_MM = 101.6      # Physical height in mm (Mini)
 MARGIN_MM = 15                 # Margin in mm
-LINE_SPACING_UNITS = 2000      # Vertical spacing in "font units" (example)
+LINE_SPACING_UNITS = 2200      # Vertical spacing in "font units" (example)
 SPACE_ADVANCE = 750            # "Width" in font units for space
 
 def get_glyph_info(character):
