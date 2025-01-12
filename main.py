@@ -91,7 +91,7 @@ def test_plot():
           <g stroke="black"
              stroke-width="0.3"
              fill="none"
-             transform="translate({MARGIN_MM}, {MARGIN_MM + 45}) scale({FIXED_SCALE}, -{FIXED_SCALE})">
+             transform="translate({MARGIN_MM}, {MARGIN_MM}) scale({FIXED_SCALE}, -{FIXED_SCALE})">
              {''.join(paths)}
           </g>
         </svg>"""
