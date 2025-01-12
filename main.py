@@ -33,7 +33,7 @@ def get_glyph_info(character):
 # --------------------------------------------------------------------
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('index.html')  # Renders the HTML file below
 
 @app.route('/static/fonts/<path:filename>')
 def serve_font(filename):
@@ -68,8 +68,7 @@ def test_plot():
 
                 glyph_info = get_glyph_info(char)
                 if glyph_info:
-                    # IMPORTANT CHANGE: include y_offset in transform
-                    # Negative sign because we often invert Y in pen plots.
+                    # Offset in font units
                     path_str = (
                         f'<path d="{glyph_info["path"]}" '
                         f'transform="translate({x_offset}, -{y_offset})" />'
@@ -77,9 +76,9 @@ def test_plot():
                     paths.append(path_str)
                     x_offset += glyph_info['advance']
                 else:
-                    x_offset += 750  # fallback if glyph not found
+                    # fallback if glyph not found
+                    x_offset += 750
 
-            # Move y_offset down for the next line
             y_offset += LINE_SPACING_UNITS
 
         # Combine all paths into a single <svg>
