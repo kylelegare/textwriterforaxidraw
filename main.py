@@ -59,7 +59,6 @@ def test_plot():
 
         # For each line of text:
         for line_index, text_line in enumerate(lines):
-            # We'll move horizontally through the line
             x_offset = 0
             for char in text_line:
                 if char == ' ':
@@ -69,32 +68,21 @@ def test_plot():
 
                 glyph_info = get_glyph_info(char)
                 if glyph_info:
-                    # Build a <path> string with a translation
-                    # transform so it appears at x_offset, -y_offset
-                    # (The minus sign is because we often invert Y in pen plots.)
+                    # IMPORTANT CHANGE: include y_offset in transform
+                    # Negative sign because we often invert Y in pen plots.
                     path_str = (
                         f'<path d="{glyph_info["path"]}" '
-                        f'transform="translate({x_offset}, 0)" />'
+                        f'transform="translate({x_offset}, -{y_offset})" />'
                     )
                     paths.append(path_str)
-                    # Advance x offset by this glyph’s width
                     x_offset += glyph_info['advance']
                 else:
-                    # If no glyph found, skip or use fallback
-                    x_offset += 750
+                    x_offset += 750  # fallback if glyph not found
 
-            # Move y_offset down for next line
+            # Move y_offset down for the next line
             y_offset += LINE_SPACING_UNITS
 
         # Combine all paths into a single <svg>
-        # Note: "viewBox" can be tuned to reflect final device size, but here
-        # we set width/height in mm to match AxiDraw physical size.
-        # The <g transform> includes:
-        #   - margin in mm
-        #   - initial vertical offset
-        #   - scale from font units to mm
-        #   - vertical inversion with `scale(..., -...)`
-        # You can tweak these transforms if needed.
         combined_svg = f"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg xmlns="http://www.w3.org/2000/svg"
              width="{AXIDRAW_WIDTH_MM}mm"
