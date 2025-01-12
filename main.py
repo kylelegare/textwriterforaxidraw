@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 app = Flask(__name__)    # This line was missing and causing the NameError
 CORS(app)
 
-FIXED_SCALE = 0.004
+FIXED_SCALE = 0.003
 AXIDRAW_WIDTH_MM = 152.4
 AXIDRAW_HEIGHT_MM = 101.6
 MARGIN_MM = 15  # Reduced from 40mm to 15mm margin on each side
@@ -110,7 +110,7 @@ def test_plot():
             print(f"Plotting line {line_number + 1} of {len(lines)}")
             ad.plot_setup(line_svg)
             ad.plot_run()
-            y_offset += 1000 * FIXED_SCALE  # Approximate line height
+            y_offset += 4000 * FIXED_SCALE  # Approximate line height
 
         ad.disconnect()
         return jsonify({'status': 'success'})
